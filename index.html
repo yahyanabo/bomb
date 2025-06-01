@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <title>Mines Game (5x5) with Money & Cashout</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: #f0f0f0;
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+      font-weight: 700;
+      font-size: 2.8rem;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+    }
+
+    #controls {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 20px 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.25);
+      margin-bottom: 10px;
+      max-width: 350px;
+      width: 100%;
+      color: #fff;
+      text-align: left;
+    }
+
+    label {
+      display: inline-block;
+      width: 140px;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    input[type="number"] {
+      width: 90px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #333;
+      box-shadow: inset 2px 2px 6px #c9c9c9,
+                  inset -2px -2px 6px #ffffff;
+      transition: box-shadow 0.3s ease;
+    }
+    input[type="number"]:focus {
+      outline: none;
+      box-shadow: 0 0 8px 2px #ffc107;
+      background: #fff;
+    }
+
+    button {
+      background: #ffc107;
+      border: none;
+      color: #333;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 10px 25px;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: background-color 0.3s ease, transform 0.15s ease;
+      box-shadow: 0 6px 10px rgba(255, 193, 7, 0.7);
+      display: block;
+      width: 100%;
+    }
+    button:hover {
+      background: #e6b006;
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 7px rgba(230, 176, 6, 0.6);
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      gap: 12px;
+      margin: 0 auto 20px;
+      width: max-content;
+      user-select: none;
+      filter: drop-shadow(0 3px 3px rgba(0,0,0,0.2));
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      background-color: #a7c7e7;
+      border-radius: 12px;
+      border: 3px solid #437fc7;
+      font-size: 26px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 3px 3px 7px #7ba4d4,
+                  inset -3px -3px 7px #d3e0f7;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      color: #fff;
+      font-weight: 700;
+
+      perspective: 600px; /* for 3D flip */
+      transform-style: preserve-3d;
+      transition: transform 0.6s ease;
+      position: relative;
+    }
+    .cell.flip {
+      transform: rotateY(180deg);
+    }
+    .cell:hover {
+      background-color: #739ddf;
+      box-shadow: inset 1px 1px 4px #5c81c2,
+                  inset -1px -1px 4px #a1bbf2;
+    }
+    .cell.revealed {
+      background-color: #4caf50;
+      border-color: #2e7d32;
+      box-shadow: none;
+      cursor: default;
+      color: #e8f5e9;
+    }
+    .cell.mine {
+      background-color: #d32f2f;
+      border-color: #b71c1c;
+      box-shadow: none;
+      cursor: default;
+      color: #fff;
+    }
+
+    #status {
+      font-size: 1.3rem;
+      min-height: 26px;
+      font-weight: 600;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+      max-width: 320px;
+      margin: 0 auto 10px;
+      color: #fff;
+    }
+
+    #balance {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+    }
+
+    #cashout-amount {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: #ffeb3b;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+    }
+  </style>
+</head>
+<body>
+  <h1>Mines Game (5x5)</h1>
+
+  <div id="balance">Balance: $1000</div>
+
+  <div id="controls">
+    <div>
+      <label for="bet">Bet amount: $</label>
+      <input type="number" id="bet" min="1" value="10" />
+    </div>
+    <div>
+      <label for="mine-count">Number of mines:</label>
+      <input type="number" id="mine-count" min="1" max="24" value="3" />
+    </div>
+    <button id="bet-button" onclick="onBetClick()">Bet & Start Game</button>
+  </div>
+
+  <div id="cashout-amount">Current Cashout: $0.00</div>
+
+  <div id="game-board"></div>
+  <p id="status"></p>
+
+  <script>
+    const boardSize = 5;
+    let mines = [];
+    let gameActive = false;
+    let balance = 1000;
+    let currentBet = 0;
+
+    function updateBalanceDisplay() {
+      document.getElementById('balance').textContent = `Balance: $${balance.toFixed(2)}`;
+    }
+
+    function updateCashoutDisplay() {
+      const amount = calculateWinnings();
+      document.getElementById('cashout-amount').textContent = `Current Cashout: $${amount.toFixed(2)}`;
+    }
+
+    function startGame(bet, mineCount) {
+      gameActive = true;
+      mines = [];
+      currentBet = bet;
+      document.getElementById("status").textContent = "";
+      generateMines(mineCount);
+      createBoard();
+      updateBalanceDisplay();
+      updateCashoutDisplay();
+    }
+
+    function generateMines(count) {
+      const positions = new Set();
+      while (positions.size < count) {
+        const r = Math.floor(Math.random() * boardSize);
+        const c = Math.floor(Math.random() * boardSize);
+        positions.add(`${r},${c}`);
+      }
+      mines = [...positions].map(pos => pos.split(",").map(Number));
+    }
+
+    function createBoard() {
+      const board = document.getElementById("game-board");
+      board.innerHTML = "";
+      for (let r = 0; r < boardSize; r++) {
+        for (let c = 0; c < boardSize; c++) {
+          const cell = document.createElement("div");
+          cell.classList.add("cell");
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.addEventListener("click", onCellClick);
+          board.appendChild(cell);
+        }
+      }
+    }
+
+    function onCellClick(e) {
+      if (!gameActive) return;
+
+      const cell = e.target;
+      const r = Number(cell.dataset.row);
+      const c = Number(cell.dataset.col);
+
+      if (isMine(r, c)) {
+        cell.classList.add("mine");
+        cell.textContent = "💣";
+        document.getElementById("status").textContent = "You hit a mine! You lose your bet.";
+        revealAllMines();
+        gameActive = false;
+        toggleButtonToBet();
+        updateCashoutDisplay();
+      } else {
+        if (cell.classList.contains("revealed")) return; // already revealed
+        
+        // Add flip animation
+        cell.classList.add("flip");
+
+        // After animation ends, reveal cell content
+        cell.addEventListener("transitionend", function handler() {
+          cell.classList.remove("flip");
+          cell.classList.add("revealed");
+          cell.textContent = "✔️";
+          cell.removeEventListener("click", onCellClick);
+          cell.removeEventListener("transitionend", handler);
+
+          if (checkWin()) {
+            // Win by clearing all safe cells
+            const winnings = calculateWinnings();
+            balance += winnings;
+            document.getElementById("status").textContent = `You cleared all safe cells! You win $${winnings.toFixed(2)}!`;
+            revealAllMines();
+            gameActive = false;
+            toggleButtonToBet();
+            updateBalanceDisplay();
+            updateCashoutDisplay();
+          } else {
+            document.getElementById("status").textContent = "Safe! Keep going or Cash Out.";
+            updateCashoutDisplay();
+          }
+        });
+      }
+    }
+
+    function isMine(r, c) {
+      return mines.some(m => m[0] === r && m[1] === c);
+    }
+
+    function revealAllMines() {
+      const cells = document.querySelectorAll(".cell");
+      cells.forEach(cell => {
+        const r = Number(cell.dataset.row);
+        const c = Number(cell.dataset.col);
+        if (isMine(r, c)) {
+          cell.classList.add("mine");
+          cell.textContent = "💣";
+        }
+        cell.removeEventListener("click", onCellClick);
+      });
+    }
+
+    function checkWin() {
+      const totalCells = boardSize * boardSize;
+      const safeCells = totalCells - mines.length;
+      const revealedCells = document.querySelectorAll(".cell.revealed").length;
+      return revealedCells === safeCells;
+    }
+
+    function onBetClick() {
+      const btn = document.getElementById("bet-button");
+      if (!gameActive) {
+        // Start game
+        const betInput = document.getElementById("bet");
+        const mineCountInput = document.getElementById("mine-count");
+        const bet = Number(betInput.value);
+        const mineCount = Number(mineCountInput.value);
+
+        if (bet <= 0) {
+          alert("Enter a valid bet amount.");
+          return;
+        }
+        // Removed bet > balance check to allow any bet
+
+        if (mineCount < 1 || mineCount >= boardSize * boardSize) {
+          alert(`Number of mines must be between 1 and ${boardSize * boardSize - 1}`);
+          return;
+        }
+
+        balance -= bet; // Deduct bet on start (balance can go negative now)
+        updateBalanceDisplay();
+        startGame(bet, mineCount);
+        btn.textContent = "Cash Out";
+      } else {
+        // Cash out logic
+        const winnings = calculateWinnings();
+        balance += winnings;
+        document.getElementById("status").textContent = `You cashed out and won $${winnings.toFixed(2)}!`;
+        gameActive = false;
+        revealAllMines();
+        updateBalanceDisplay();
+        updateCashoutDisplay();
+        toggleButtonToBet();
+      }
+    }
+
+    function calculateWinnings() {
+      const totalCells = boardSize * boardSize;
+      const safeCells = totalCells - mines.length;
+      const revealedCells = document.querySelectorAll(".cell.revealed").length;
+
+      if (!gameActive) return 0;
+
+      // Simple payout: winnings = bet * (1 + progress * multiplier)
+      const progressRatio = revealedCells / safeCells;
+      const multiplier = 1.5;
+
+      return currentBet * (1 + progressRatio * multiplier);
+    }
+
+    function toggleButtonToBet() {
+      const btn = document.getElementById("bet-button");
+      btn.textContent = "Bet & Start Game";
+      document.getElementById('cashout-amount').textContent = "Current Cashout: $0.00";
+    }
+
+    updateBalanceDisplay();
+    updateCashoutDisplay();
+  </script>
+</body>
+</html>
